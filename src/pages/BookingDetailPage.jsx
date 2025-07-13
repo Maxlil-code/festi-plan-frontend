@@ -93,9 +93,9 @@ const BookingDetailPage = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('fr-CF', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'XAF',
     }).format(amount);
   };
 
@@ -239,7 +239,7 @@ const BookingDetailPage = () => {
             <Card>
               <div className="p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  Booking Details
+                  Détails de la réservation
                 </h2>
 
                 <div className="space-y-4">
@@ -249,14 +249,14 @@ const BookingDetailPage = () => {
                   </div>
 
                   <div className="flex items-center justify-between py-3 border-b">
-                    <span className="text-gray-600">Total Amount</span>
+                    <span className="text-gray-600">Montant total</span>
                     <span className="font-bold text-xl text-primary-600">
                       {formatCurrency(booking.total)}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between py-3 border-b">
-                    <span className="text-gray-600">Booking Date</span>
+                    <span className="text-gray-600">Date de réservation</span>
                     <span className="font-medium text-gray-900">
                       {formatDateTime(booking.createdAt)}
                     </span>
@@ -290,7 +290,7 @@ const BookingDetailPage = () => {
                 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Subtotal</span>
+                    <span className="text-gray-600">Sous-total</span>
                     <span className="font-medium text-gray-900">
                       {formatCurrency(booking.subtotal || booking.total)}
                     </span>
@@ -298,7 +298,7 @@ const BookingDetailPage = () => {
                   
                   {booking.tax && (
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Tax</span>
+                      <span className="text-gray-600">Taxe</span>
                       <span className="font-medium text-gray-900">
                         {formatCurrency(booking.tax)}
                       </span>
@@ -313,9 +313,9 @@ const BookingDetailPage = () => {
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Payment Status</span>
+                    <span className="text-gray-600">Statut du paiement</span>
                     <Badge variant={booking.paymentStatus === 'paid' ? 'success' : 'warning'}>
-                      {booking.paymentStatus || 'pending'}
+                      {booking.paymentStatus === 'paid' ? 'payé' : booking.paymentStatus === 'pending' ? 'en attente' : booking.paymentStatus || 'en attente'}
                     </Badge>
                   </div>
                 </div>
@@ -433,7 +433,7 @@ const BookingDetailPage = () => {
                   <div className="flex items-center">
                     <CurrencyDollarIcon className="h-5 w-5 text-gray-400 mr-3" />
                     <div>
-                      <p className="text-sm text-gray-600">Total Amount</p>
+                      <p className="text-sm text-gray-600">Montant total</p>
                       <p className="font-bold text-lg text-primary-600">
                         {formatCurrency(booking.total)}
                       </p>
@@ -443,7 +443,7 @@ const BookingDetailPage = () => {
                   <div className="flex items-center">
                     <ClockIcon className="h-5 w-5 text-gray-400 mr-3" />
                     <div>
-                      <p className="text-sm text-gray-600">Status</p>
+                      <p className="text-sm text-gray-600">Statut</p>
                       <Badge variant={getStatusColor(booking.status)}>
                         {booking.status}
                       </Badge>

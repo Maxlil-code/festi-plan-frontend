@@ -7,6 +7,16 @@ export const quoteService = {
     return response.data;
   },
 
+  getProvidersQuotes: async (params = {}) => {
+    const response = await api.get('/quotes/provider', { params });
+    return response.data;
+  },
+
+  getOrganizerQuotes: async (params = {}) => {
+    const response = await api.get('/quotes/organizer', { params });
+    return response.data;
+  },
+
   // Get quote by ID (alias for consistency)
   getQuote: async (id) => {
     const response = await api.get(`/quotes/${id}`);

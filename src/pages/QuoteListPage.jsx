@@ -33,9 +33,9 @@ const QuoteListPage = () => {
     try {
       setIsLoading(true);
       const response = await quoteService.getQuotes();
-      setQuotes(response.quotes || []);
+      setQuotes(response.data.quotes || []);
     } catch (error) {
-      setError('Failed to fetch quotes');
+      setError('Échec du chargement des devis');
       console.error('Error fetching quotes:', error);
     } finally {
       setIsLoading(false);
@@ -48,9 +48,10 @@ const QuoteListPage = () => {
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(quote =>
-        quote.service?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        quote.event?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        quote.provider?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+        quote.venue?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        quote.event?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        quote.provider?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        quote.provider?.lastName?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -67,9 +68,9 @@ const QuoteListPage = () => {
         case 'oldest':
           return new Date(a.createdAt) - new Date(b.createdAt);
         case 'amount-high':
-          return (b.amount || 0) - (a.amount || 0);
+          return parseFloat(b.total || 0) - parseFloat(a.total || 0);
         case 'amount-low':
-          return (a.amount || 0) - (b.amount || 0);
+          return parseFloat(a.total || 0) - parseFloat(b.total || 0);
         case 'event-date':
           return new Date(a.event?.date || 0) - new Date(b.event?.date || 0);
         default:
@@ -81,7 +82,7 @@ const QuoteListPage = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -89,14 +90,15 @@ const QuoteListPage = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+      currency: 'EUR',
+    }).format(parseFloat(amount));
   };
 
   const getStatusColor = (status) => {
     switch (status) {
+      case 'draft':
       case 'pending':
         return 'warning';
       case 'accepted':
@@ -113,6 +115,7 @@ const QuoteListPage = () => {
   const getStatusCounts = () => {
     return {
       all: quotes.length,
+      draft: quotes.filter(q => q.status === 'draft').length,
       pending: quotes.filter(q => q.status === 'pending').length,
       accepted: quotes.filter(q => q.status === 'accepted').length,
       rejected: quotes.filter(q => q.status === 'rejected').length,
@@ -134,9 +137,9 @@ const QuoteListPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Quote Requests</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Devis d'événements</h1>
           <p className="mt-2 text-gray-600">
-            Manage all your quote requests from service providers
+            Gérez tous vos devis de fournisseurs de services
           </p>
         </div>
 
@@ -156,7 +159,7 @@ const QuoteListPage = () => {
                   <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search quotes..."
+                    placeholder="Rechercher des devis..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -171,10 +174,11 @@ const QuoteListPage = () => {
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
-                  <option value="all">All Status ({statusCounts.all})</option>
-                  <option value="pending">Pending ({statusCounts.pending})</option>
-                  <option value="accepted">Accepted ({statusCounts.accepted})</option>
-                  <option value="rejected">Rejected ({statusCounts.rejected})</option>
+                  <option value="all">Tous les statuts ({statusCounts.all})</option>
+                  <option value="draft">Brouillon ({statusCounts.draft})</option>
+                  <option value="pending">En attente ({statusCounts.pending})</option>
+                  <option value="accepted">Accepté ({statusCounts.accepted})</option>
+                  <option value="rejected">Rejeté ({statusCounts.rejected})</option>
                 </select>
               </div>
 
@@ -185,11 +189,11 @@ const QuoteListPage = () => {
                   onChange={(e) => setSortBy(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
-                  <option value="newest">Newest First</option>
-                  <option value="oldest">Oldest First</option>
-                  <option value="amount-high">Highest Amount</option>
-                  <option value="amount-low">Lowest Amount</option>
-                  <option value="event-date">Event Date</option>
+                  <option value="newest">Plus récent</option>
+                  <option value="oldest">Plus ancien</option>
+                  <option value="amount-high">Montant décroissant</option>
+                  <option value="amount-low">Montant croissant</option>
+                  <option value="event-date">Date d'événement</option>
                 </select>
               </div>
             </div>
@@ -202,7 +206,7 @@ const QuoteListPage = () => {
             <div className="flex items-center">
               <DocumentTextIcon className="h-8 w-8 text-primary-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Quotes</p>
+                <p className="text-sm font-medium text-gray-500">Total des devis</p>
                 <p className="text-2xl font-bold text-gray-900">{statusCounts.all}</p>
               </div>
             </div>
@@ -212,8 +216,8 @@ const QuoteListPage = () => {
             <div className="flex items-center">
               <ClockIcon className="h-8 w-8 text-yellow-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Pending</p>
-                <p className="text-2xl font-bold text-gray-900">{statusCounts.pending}</p>
+                <p className="text-sm font-medium text-gray-500">En attente</p>
+                <p className="text-2xl font-bold text-gray-900">{statusCounts.pending + statusCounts.draft}</p>
               </div>
             </div>
           </Card>
@@ -222,7 +226,7 @@ const QuoteListPage = () => {
             <div className="flex items-center">
               <DocumentTextIcon className="h-8 w-8 text-green-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Accepted</p>
+                <p className="text-sm font-medium text-gray-500">Acceptés</p>
                 <p className="text-2xl font-bold text-gray-900">{statusCounts.accepted}</p>
               </div>
             </div>
@@ -232,11 +236,11 @@ const QuoteListPage = () => {
             <div className="flex items-center">
               <CurrencyDollarIcon className="h-8 w-8 text-primary-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Avg. Quote</p>
+                <p className="text-sm font-medium text-gray-500">Devis moyen</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {quotes.length > 0 
-                    ? formatCurrency(quotes.reduce((sum, q) => sum + (q.amount || 0), 0) / quotes.length)
-                    : '$0'
+                    ? formatCurrency(quotes.reduce((sum, q) => sum + parseFloat(q.total || 0), 0) / quotes.length)
+                    : '0€'
                   }
                 </p>
               </div>
@@ -248,11 +252,11 @@ const QuoteListPage = () => {
         {filteredQuotes.length === 0 ? (
           <Card className="p-12 text-center">
             <DocumentTextIcon className="mx-auto h-16 w-16 text-gray-400" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">No quotes found</h3>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Aucun devis trouvé</h3>
             <p className="mt-2 text-gray-500">
               {searchTerm || statusFilter !== 'all' 
-                ? 'Try adjusting your search or filters'
-                : 'Quote requests from providers will appear here'
+                ? 'Essayez d\'ajuster votre recherche ou vos filtres'
+                : 'Les demandes de devis des fournisseurs apparaîtront ici'
               }
             </p>
           </Card>
@@ -265,28 +269,31 @@ const QuoteListPage = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-lg font-semibold text-gray-900 truncate">
-                          {quote.service}
+                          {quote.venue?.name || 'Lieu non spécifié'}
                         </h3>
                         <Badge variant={getStatusColor(quote.status)}>
-                          {quote.status}
+                          {quote.status === 'draft' ? 'Brouillon' : 
+                           quote.status === 'pending' ? 'En attente' :
+                           quote.status === 'accepted' ? 'Accepté' :
+                           quote.status === 'rejected' ? 'Rejeté' : quote.status}
                         </Badge>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600">
                         <div className="flex items-center">
                           <CalendarIcon className="h-4 w-4 mr-2" />
-                          <span>{quote.event?.title || 'Event'}</span>
+                          <span>{quote.event?.name || 'Événement'}</span>
                         </div>
 
                         <div className="flex items-center">
                           <UserIcon className="h-4 w-4 mr-2" />
-                          <span>{quote.provider?.name || 'Provider'}</span>
+                          <span>{quote.provider ? `${quote.provider.firstName} ${quote.provider.lastName}` : 'Fournisseur'}</span>
                         </div>
 
                         <div className="flex items-center">
                           <CurrencyDollarIcon className="h-4 w-4 mr-2" />
                           <span className="font-semibold text-primary-600">
-                            {formatCurrency(quote.amount || 0)}
+                            {formatCurrency(quote.total || 0)}
                           </span>
                         </div>
 
@@ -296,16 +303,21 @@ const QuoteListPage = () => {
                         </div>
                       </div>
 
-                      {quote.notes && (
-                        <p className="mt-3 text-sm text-gray-600 line-clamp-2">
-                          {quote.notes}
-                        </p>
+                      {/* Quote details */}
+                      {quote.items && (
+                        <div className="mt-3">
+                          <p className="text-sm text-gray-600">
+                            {JSON.parse(quote.items).length} article(s) - 
+                            Sous-total: {formatCurrency(quote.subtotal)} + 
+                            TVA: {formatCurrency(quote.vat)}
+                          </p>
+                        </div>
                       )}
 
                       {quote.validUntil && new Date(quote.validUntil) > new Date() && (
                         <div className="mt-3 flex items-center text-sm text-amber-600">
                           <ClockIcon className="h-4 w-4 mr-1" />
-                          <span>Valid until {formatDate(quote.validUntil)}</span>
+                          <span>Valide jusqu'au {formatDate(quote.validUntil)}</span>
                         </div>
                       )}
                     </div>

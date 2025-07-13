@@ -70,9 +70,9 @@ const VenueListPage = () => {
   };
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('fr-CF', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'XAF',
     }).format(price);
   };
 
@@ -102,11 +102,11 @@ const VenueListPage = () => {
   ];
 
   const priceRanges = [
-    { value: '', label: 'Any Price' },
-    { value: '0-1000', label: 'Under $1,000' },
-    { value: '1000-5000', label: '$1,000 - $5,000' },
-    { value: '5000-10000', label: '$5,000 - $10,000' },
-    { value: '10000+', label: '$10,000+' },
+    { value: '', label: 'Tous les prix' },
+    { value: '0-100000', label: 'Moins de 100 000 XAF' },
+    { value: '100000-500000', label: '100 000 - 500 000 XAF' },
+    { value: '500000-1000000', label: '500 000 - 1 000 000 XAF' },
+    { value: '1000000+', label: 'Plus de 1 000 000 XAF' },
   ];
 
   if (isLoading) {
@@ -178,11 +178,11 @@ const VenueListPage = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Minimum Capacity
+                    Capacité minimale
                   </label>
                   <input
                     type="number"
-                    placeholder="Number of guests"
+                    placeholder="Nombre d'invités"
                     value={filters.capacity}
                     onChange={(e) => handleFilterChange('capacity', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
@@ -191,7 +191,7 @@ const VenueListPage = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Price Range
+                    Gamme de prix
                   </label>
                   <select
                     value={filters.priceRange}
@@ -311,11 +311,11 @@ const VenueListPage = () => {
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center text-gray-600">
                       <UsersIcon className="h-4 w-4 mr-1" />
-                      Up to {venue.capacity} guests
+                      Jusqu'à {venue.capacity} invités
                     </div>
                     <div className="flex items-center text-primary-600 font-semibold">
                       <CurrencyDollarIcon className="h-4 w-4 mr-1" />
-                      {formatPrice(venue.pricePerHour || venue.basePrice)}/hr
+                      {formatPrice(venue.pricePerHour || venue.basePrice)}/h
                     </div>
                   </div>
 

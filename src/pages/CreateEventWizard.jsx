@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Input, Card, Spinner, Modal } from '../components';
 import { eventService } from '../services/eventService';
+import { quoteService } from '../services/quoteService';
 import { analyzeRequirements, fetchRecommendations, fetchQuote } from '../services/aiService';
 import { useToast } from '../contexts/ToastContext';
 import { 
@@ -245,7 +246,8 @@ const CreateEventWizard = () => {
         parseInt(guestCount || formData.guestCount),
         parseFloat(budget || formData.budget)
       );
-      const venues = response.data?.venues || response.data || [];
+      console.log("AI recommendations response:", response);
+      const venues = response.data?.data || response.data || [];
       setRecommendations(venues);
       showSuccess('AI recommendations generated!');
     } catch (error) {
@@ -267,7 +269,8 @@ const CreateEventWizard = () => {
 
     try {
       const response = await fetchQuote(venue.id, currentEventId);
-      setQuote(response.data);
+      console.log("Quote response:", response); 
+      setQuote(response.data.data);
     } catch (error) {
       showError('Failed to generate quote: ' + (error.response?.data?.message || error.message));
       setShowQuoteModal(false);
@@ -283,13 +286,31 @@ const CreateEventWizard = () => {
   // Accept quote (section 10.7)
   const handleAcceptQuote = async () => {
     try {
-      // Call POST /quotes/:id/accept
-      await eventService.acceptQuote(quote.id);
-      showSuccess('Quote accepted! Provider has been notified.');
+      // Préparer les données pour créer un nouveau devis lié à l'événement
+      const quoteData = {
+        eventId: currentEventId,
+        venueId: selectedVenue.id,
+        providerId: selectedVenue.providerId || selectedVenue.owner?.id,
+        items: quote.items,
+        subtotal: quote.subtotal,
+        vat: quote.vat,
+        total: quote.total,
+        validUntil: quote.validUntil || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 jours par défaut
+      };
+
+      // Appeler l'endpoint pour créer le devis
+      await quoteService.createQuote(quoteData);
+      
+      // Mettre à jour le statut de l'événement à "planning"
+      await eventService.patchEvent(currentEventId, {
+        status: 'planning'
+      });
+      
+      showSuccess('Devis accepté ! L\'événement est maintenant en phase de planification.');
       setShowQuoteModal(false);
       navigate('/dashboard');
     } catch (error) {
-      showError('Failed to accept quote: ' + (error.response?.data?.message || error.message));
+      showError('Échec de l\'acceptation du devis: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -362,22 +383,22 @@ const CreateEventWizard = () => {
           <div className="space-y-6">
             <div className="text-center mb-8">
               <CalendarIcon className="mx-auto h-12 w-12 text-primary-500 mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900">Event Type & Details</h2>
-              <p className="text-gray-600">Tell us about your event</p>
+              <h2 className="text-2xl font-bold text-gray-900">Type d'événement et détails</h2>
+              <p className="text-gray-600">Parlez-nous de votre événement</p>
             </div>
 
             <Input
-              label="Event Name"
+              label="Nom de l'événement"
               name="name"
               value={formData.name}
               onChange={handleChange}
-              placeholder="My Amazing Event"
+              placeholder="Mon événement incroyable"
               required
             />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Event Type
+                Type d'événement
               </label>
               <select 
                 name="type"
@@ -386,7 +407,7 @@ const CreateEventWizard = () => {
                 className="w-full rounded-md border-neutral-300 focus:border-primary-500 focus:ring-primary-500"
                 required
               >
-                <option value="">Select event type...</option>
+                <option value="">Sélectionnez le type d'événement...</option>
                 {EVENT_TYPES.map((type) => (
                   <option key={type} value={type}>
                     {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -405,7 +426,7 @@ const CreateEventWizard = () => {
                 onChange={handleChange}
                 rows={4}
                 className="w-full rounded-md border-neutral-300 focus:border-primary-500 focus:ring-primary-500"
-                placeholder="Describe your event..."
+                placeholder="Décrivez votre événement..."
               />
             </div>
           </div>
@@ -416,12 +437,12 @@ const CreateEventWizard = () => {
           <div className="space-y-6">
             <div className="text-center mb-8">
               <CalendarIcon className="mx-auto h-12 w-12 text-primary-500 mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900">Date & Time</h2>
-              <p className="text-gray-600">When will your event take place?</p>
+              <h2 className="text-2xl font-bold text-gray-900">Date et heure</h2>
+              <p className="text-gray-600">Quand aura lieu votre événement ?</p>
             </div>
 
             <Input
-              label="Event Date"
+              label="Date de l'événement"
               name="date"
               type="date"
               value={formData.date}
@@ -431,7 +452,7 @@ const CreateEventWizard = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Start Time"
+                label="Heure de début"
                 name="startTime"
                 type="time"
                 value={formData.startTime}
@@ -440,7 +461,7 @@ const CreateEventWizard = () => {
               />
 
               <Input
-                label="End Time"
+                label="Heure de fin"
                 name="endTime"
                 type="time"
                 value={formData.endTime}
@@ -456,21 +477,21 @@ const CreateEventWizard = () => {
           <div className="space-y-6">
             <div className="text-center mb-8">
               <MapPinIcon className="mx-auto h-12 w-12 text-primary-500 mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900">Location & Guests</h2>
-              <p className="text-gray-600">Where and how many people?</p>
+              <h2 className="text-2xl font-bold text-gray-900">Lieu et invités</h2>
+              <p className="text-gray-600">Où et combien de personnes ?</p>
             </div>
 
             <Input
-              label="City"
+              label="Ville"
               name="city"
               value={formData.city}
               onChange={handleChange}
-              placeholder="New York"
+              placeholder="Paris"
               required
             />
 
             <Input
-              label="Expected Number of Guests"
+              label="Nombre d'invités attendus"
               name="guestCount"
               type="number"
               value={formData.guestCount}
@@ -487,12 +508,12 @@ const CreateEventWizard = () => {
           <div className="space-y-6">
             <div className="text-center mb-8">
               <CurrencyDollarIcon className="mx-auto h-12 w-12 text-primary-500 mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900">Budget & Services</h2>
-              <p className="text-gray-600">What's your budget and what services do you need?</p>
+              <h2 className="text-2xl font-bold text-gray-900">Budget et services</h2>
+              <p className="text-gray-600">Quel est votre budget et de quels services avez-vous besoin ?</p>
             </div>
 
             <Input
-              label="Total Budget ($)"
+              label="Budget total (XAF)"
               name="budget"
               type="number"
               value={formData.budget}
@@ -504,7 +525,7 @@ const CreateEventWizard = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                Required Services
+                Services requis
               </label>
               <div className="grid grid-cols-2 gap-4">
                 {SERVICES.map((service) => (
@@ -531,7 +552,7 @@ const CreateEventWizard = () => {
             {isAnalyzing && (
               <div className="flex items-center justify-center py-4">
                 <Spinner size="sm" />
-                <span className="ml-2 text-sm text-gray-600">Analyzing requirements with AI...</span>
+                <span className="ml-2 text-sm text-gray-600">Analyse des exigences avec l'IA...</span>
               </div>
             )}
           </div>
@@ -542,17 +563,17 @@ const CreateEventWizard = () => {
           <div className="space-y-6">
             <div className="text-center mb-8">
               <SparklesIcon className="mx-auto h-12 w-12 text-primary-500 mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900">AI Venue Suggestions</h2>
-              <p className="text-gray-600">Based on your requirements, here are the best venues</p>
+              <h2 className="text-2xl font-bold text-gray-900">Suggestions de lieux IA</h2>
+              <p className="text-gray-600">Basé sur vos exigences, voici les meilleurs lieux</p>
             </div>
 
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Spinner />
-                <span className="ml-2">Getting AI recommendations...</span>
+                <span className="ml-2">Obtention des recommandations IA...</span>
               </div>
             ) : recommendations.length > 0 ? (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-6">
                 {recommendations.map((venue, index) => (
                   <Card key={venue.id || index} className="text-left">
                     <div className="flex justify-between items-start mb-3">
@@ -564,13 +585,13 @@ const CreateEventWizard = () => {
                     <p className="text-gray-600 text-sm mb-2">{venue.location || venue.address}</p>
                     <p className="text-gray-500 text-sm mb-3">{venue.description}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-green-600">✓ Available</span>
+                      <span className="text-sm text-green-600">✓ Disponible</span>
                       <Button 
                         size="sm" 
                         variant="outline"
                         onClick={() => handleQuoteRequest(venue)}
                       >
-                        Get Quote
+                        Obtenir un devis
                       </Button>
                     </div>
                   </Card>
@@ -579,13 +600,13 @@ const CreateEventWizard = () => {
             ) : (
               <div className="text-center py-12">
                 <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <p className="text-gray-600">No recommendations available. Please try again.</p>
+                <p className="text-gray-600">Aucune recommandation disponible. Veuillez réessayer.</p>
                 <Button 
                   variant="outline" 
                   onClick={retryStep}
                   className="mt-4"
                 >
-                  Retry
+                  Réessayer
                 </Button>
               </div>
             )}
@@ -595,7 +616,7 @@ const CreateEventWizard = () => {
                 Sauvegarder le brouillon
               </Button>
               <Button onClick={() => navigate('/venues')}>
-                Browse All Venues
+                Parcourir tous les lieux
               </Button>
             </div>
           </div>
@@ -615,7 +636,7 @@ const CreateEventWizard = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Spinner />
-          <p className="mt-4 text-gray-600">Loading draft...</p>
+          <p className="mt-4 text-gray-600">Chargement du brouillon...</p>
         </div>
       </div>
     );
@@ -702,46 +723,102 @@ const CreateEventWizard = () => {
         <Modal
           isOpen={showQuoteModal}
           onClose={() => setShowQuoteModal(false)}
-          title={`Quote for ${selectedVenue?.name}`}
+          title={`Devis pour ${selectedVenue?.name}`}
         >
           {isLoadingQuote ? (
             <div className="flex items-center justify-center py-8">
               <Spinner />
-              <span className="ml-2">Generating AI-powered quote...</span>
+              <span className="ml-2">Génération du devis avec l'IA...</span>
             </div>
           ) : quote ? (
             <div className="space-y-4">
               <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="font-medium text-gray-900 mb-2">Quote Breakdown</h4>
-                {quote.items?.map((item, index) => (
-                  <div key={index} className="flex justify-between text-sm">
-                    <span>{item.description}</span>
-                    <span>${item.amount}</span>
-                  </div>
-                ))}
-                <div className="border-t mt-2 pt-2 flex justify-between font-bold">
-                  <span>Total</span>
-                  <span>${quote.total}</span>
+                <h4 className="font-medium text-gray-900 mb-3">Détail du devis</h4>
+                
+                {/* Quote Items */}
+                <div className="space-y-2 mb-4">
+                  {quote.items?.map((item, index) => (
+                    <div key={index} className="flex justify-between items-center text-sm">
+                      <div className="flex-1">
+                        <span className="text-gray-900">{item.description}</span>
+                        {item.quantity > 1 && (
+                          <span className="text-gray-500 ml-2">x{item.quantity}</span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        {item.quantity > 1 && (
+                          <div className="text-xs text-gray-500">{item.unitPrice} XAF × {item.quantity}</div>
+                        )}
+                        <span className="font-medium">{item.total} XAF</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
+
+                {/* Quote Summary */}
+                <div className="border-t pt-3 space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Sous-total</span>
+                    <span>{quote.subtotal} XAF</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">TVA</span>
+                    <span>{quote.vat}€</span>
+                  </div>
+                  <div className="flex justify-between text-lg font-bold border-t pt-2">
+                    <span>Total</span>
+                    <span>{quote.total} XAF</span>
+                  </div>
+                </div>
+
+                {/* Breakdown */}
+                {quote.breakdown && (
+                  <div className="mt-4 pt-3 border-t">
+                    <h5 className="text-sm font-medium text-gray-700 mb-2">Répartition des coûts</h5>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="text-center p-2 bg-white rounded">
+                        <div className="font-medium">Lieu</div>
+                        <div className="text-gray-600">{quote.breakdown.venue}€</div>
+                      </div>
+                      <div className="text-center p-2 bg-white rounded">
+                        <div className="font-medium">Traiteur</div>
+                        <div className="text-gray-600">{quote.breakdown.catering}€</div>
+                      </div>
+                      <div className="text-center p-2 bg-white rounded">
+                        <div className="font-medium">Services</div>
+                        <div className="text-gray-600">{quote.breakdown.services}€</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes */}
+                {quote.notes && (
+                  <div className="mt-4 pt-3 border-t">
+                    <h5 className="text-sm font-medium text-gray-700 mb-1">Notes</h5>
+                    <p className="text-sm text-gray-600">{quote.notes}</p>
+                  </div>
+                )}
               </div>
+              
               <div className="flex space-x-3">
                 <Button variant="outline" onClick={() => setShowQuoteModal(false)}>
-                  Decline
+                  Refuser
                 </Button>
                 <Button onClick={handleAcceptQuote}>
-                  Accept Quote
+                  Accepter le devis
                 </Button>
               </div>
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-gray-600">Failed to generate quote. Please try again.</p>
+              <p className="text-gray-600">Échec de la génération du devis. Veuillez réessayer.</p>
               <Button 
                 variant="outline" 
                 onClick={() => handleQuoteRequest(selectedVenue)}
                 className="mt-4"
               >
-                Retry
+                Réessayer
               </Button>
             </div>
           )}

@@ -75,9 +75,9 @@ const DashboardOrganizer = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('fr-CF', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'XAF',
     }).format(amount);
   };
 

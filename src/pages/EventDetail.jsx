@@ -83,9 +83,9 @@ const EventDetail = () => {
 
   const formatCurrency = (amount) => {
     if (!amount) return 'Budget non défini';
-    return new Intl.NumberFormat('fr-FR', {
+    return new Intl.NumberFormat('fr-CF', {
       style: 'currency',
-      currency: 'EUR',
+      currency: 'XAF',
     }).format(amount);
   };
 

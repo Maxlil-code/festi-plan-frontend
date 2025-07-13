@@ -49,9 +49,9 @@ const VenueDetail = () => {
   };
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('fr-FR', {
+    return new Intl.NumberFormat('fr-CF', {
       style: 'currency',
-      currency: 'EUR',
+      currency: 'XAF',
     }).format(price);
   };
 

@@ -33,24 +33,23 @@ const DashboardProvider = () => {
     try {
       setIsLoading(true);
       const [quotesResponse, bookingsResponse] = await Promise.all([
-        quoteService.getQuotes(),
-        bookingService.getBookings(),
+        quoteService.getProvidersQuotes(),
       ]);
 
-      const quotesData = quotesResponse.quotes || [];
-      const bookingsData = bookingsResponse.bookings || [];
+      console.log("Quotes response:", quotesResponse);
+
+      const quotesData = quotesResponse.data.quotes || [];
 
       setQuotes(quotesData);
-      setBookings(bookingsData);
 
       // Calculate stats
       const totalQuotes = quotesData.length;
-      const pendingQuotes = quotesData.filter(q => q.status === 'pending').length;
+      const pendingQuotes = quotesData.filter(q => q.status === 'pending' || q.status === 'draft').length;
       const acceptedQuotes = quotesData.filter(q => q.status === 'accepted').length;
-      const totalBookings = bookingsData.length;
-      const revenue = bookingsData
-        .filter(b => b.status === 'confirmed')
-        .reduce((sum, booking) => sum + (booking.total || 0), 0);
+      const totalBookings = 0; // bookingsData.length;
+      const revenue = quotesData
+        .filter(q => q.status === 'accepted')
+        .reduce((sum, quote) => sum + parseFloat(quote.total || 0), 0);
 
       setStats({
         totalQuotes,
@@ -68,7 +67,7 @@ const DashboardProvider = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -76,14 +75,15 @@ const DashboardProvider = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('fr-CF', {
       style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+      currency: 'XAF',
+    }).format(parseFloat(amount));
   };
 
   const getStatusColor = (status) => {
     switch (status) {
+      case 'draft':
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
       case 'accepted':
@@ -115,10 +115,10 @@ const DashboardProvider = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
-            Welcome back, {user?.firstName || 'Provider'}!
+            Bienvenue, {user?.firstName || 'Fournisseur'} !
           </h1>
           <p className="mt-2 text-gray-600">
-            Manage your quotes and bookings
+            Gérez vos devis et réservations
           </p>
         </div>
 
@@ -130,7 +130,7 @@ const DashboardProvider = () => {
                 <DocumentTextIcon className="h-8 w-8 text-primary-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Quotes</p>
+                <p className="text-sm font-medium text-gray-500">Total Devis</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.totalQuotes}</p>
               </div>
             </div>
@@ -142,7 +142,7 @@ const DashboardProvider = () => {
                 <ClockIcon className="h-8 w-8 text-yellow-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Pending</p>
+                <p className="text-sm font-medium text-gray-500">En Attente</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.pendingQuotes}</p>
               </div>
             </div>
@@ -154,7 +154,7 @@ const DashboardProvider = () => {
                 <DocumentTextIcon className="h-8 w-8 text-green-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Accepted</p>
+                <p className="text-sm font-medium text-gray-500">Acceptés</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.acceptedQuotes}</p>
               </div>
             </div>
@@ -166,7 +166,7 @@ const DashboardProvider = () => {
                 <CalendarIcon className="h-8 w-8 text-blue-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Bookings</p>
+                <p className="text-sm font-medium text-gray-500">Réservations</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.totalBookings}</p>
               </div>
             </div>
@@ -178,7 +178,7 @@ const DashboardProvider = () => {
                 <CurrencyDollarIcon className="h-8 w-8 text-green-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Revenue</p>
+                <p className="text-sm font-medium text-gray-500">Revenus</p>
                 <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.revenue)}</p>
               </div>
             </div>
@@ -195,15 +195,15 @@ const DashboardProvider = () => {
           {/* Recent Quotes */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Recent Quotes</h2>
+              <h2 className="text-lg font-medium text-gray-900">Devis Récents</h2>
             </div>
             
             {quotes.length === 0 ? (
               <div className="p-6 text-center">
                 <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No quotes</h3>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">Aucun devis</h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  Quote requests will appear here.
+                  Les demandes de devis apparaîtront ici.
                 </p>
               </div>
             ) : (
@@ -217,10 +217,10 @@ const DashboardProvider = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <h3 className="text-sm font-medium text-gray-900">
-                            {quote.event?.title || 'Event Quote'}
+                            {quote.event?.name || 'Devis d\'événement'}
                           </h3>
                           <p className="text-sm text-gray-500 mt-1">
-                            {quote.service} - {formatCurrency(quote.amount)}
+                            {quote.venue?.name || 'Lieu'} - {formatCurrency(quote.total)}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
                             {formatDate(quote.createdAt)}
@@ -228,7 +228,10 @@ const DashboardProvider = () => {
                         </div>
                         <div className="flex-shrink-0">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(quote.status)}`}>
-                            {quote.status}
+                            {quote.status === 'draft' ? 'Brouillon' : 
+                             quote.status === 'pending' ? 'En attente' :
+                             quote.status === 'accepted' ? 'Accepté' :
+                             quote.status === 'rejected' ? 'Rejeté' : quote.status}
                           </span>
                         </div>
                       </div>
@@ -242,15 +245,15 @@ const DashboardProvider = () => {
           {/* Recent Bookings */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Recent Bookings</h2>
+              <h2 className="text-lg font-medium text-gray-900">Réservations Récentes</h2>
             </div>
             
             {bookings.length === 0 ? (
               <div className="p-6 text-center">
                 <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No bookings</h3>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">Aucune réservation</h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  Confirmed bookings will appear here.
+                  Les réservations confirmées apparaîtront ici.
                 </p>
               </div>
             ) : (
@@ -264,7 +267,7 @@ const DashboardProvider = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <h3 className="text-sm font-medium text-gray-900">
-                            {booking.event?.title || 'Event Booking'}
+                            {booking.event?.name || 'Réservation d\'événement'}
                           </h3>
                           <p className="text-sm text-gray-500 mt-1">
                             {formatDate(booking.event?.date)} - {formatCurrency(booking.total)}
